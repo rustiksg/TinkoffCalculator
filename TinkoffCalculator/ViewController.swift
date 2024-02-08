@@ -64,30 +64,44 @@ class ViewController: UIViewController {
     @IBOutlet weak var label: UILabel!
     @IBAction func buttonPressed(_ sender: UIButton) {
         guard let buttonText = sender.currentTitle else { return }
-        if buttonText == "." && label.text?.contains(".") == true {
+        
+        switch buttonText {
+        case "." where label.text?.contains(".") == true:
             return
-        }
-        if label.text == "0" {
-            label.text = buttonText
-        } else {
-            label.text?.append(buttonText)
+        case "," where label.text == "0":
+            label.text = "0,"
+        case "," where label.text?.contains(",") == true:
+            return
+        default:
+            if label.text == "0" || label.text == "Ошибка" {
+                label.text = buttonText
+            } else {
+                let count = label.text?.filter { $0 != " " }.count ?? 0
+                if count < 9 {
+                    label.text?.append(buttonText)
+                }
+            }
         }
     }
+
     
     @IBAction func operationButtonPressed(_ sender: UIButton) {
-        guard
-            let buttonText = sender.currentTitle,
-            let buttonOperation = Operation(rawValue: buttonText)
-        else { return }
-        
-        guard
-            let labelText = label.text,
-            let labelNumber = numberFormatter.number(from: labelText)?.doubleValue
-        else { return }
-        
-        calculationHistory.append(.number(labelNumber))
-        calculationHistory.append(.operation(buttonOperation))
-        resetLabelText()
+            guard
+                let buttonText = sender.currentTitle,
+                let buttonOperation = Operation(rawValue: buttonText)
+            else { return }
+            if case .operation(_) = calculationHistory.last {
+                return
+            }
+            
+            guard
+                let labelText = label.text,
+                let labelNumber = numberFormatter.number(from: labelText)?.doubleValue
+            else { return }
+            
+            calculationHistory.append(.number(labelNumber))
+            calculationHistory.append(.operation(buttonOperation))
+            resetLabelText()
     }
     
     @IBAction func clearButtonPressed() {
@@ -97,22 +111,27 @@ class ViewController: UIViewController {
     
     @IBAction func calculateButtonPressed(_ sender: UIButton) {
         guard
-            let labelText = label.text,
-            let labelNumber = numberFormatter.number(from: labelText)?.doubleValue
-        else { return }
-        calculationHistory.append(.number(labelNumber))
-        do {
-            let result = try calculate()
-            
-            label.text = numberFormatter.string(from: NSNumber(value: result))
-        }
-        catch CalculationError.dividedByZero {
-            label.text = "Ошибка: деление на ноль"
-        }
-        catch {
-            label.text = "Ошибка"
-        }
-        calculationHistory.removeAll()
+               let labelText = label.text,
+               let labelNumber = numberFormatter.number(from: labelText)?.doubleValue
+           else { return }
+           calculationHistory.append(.number(labelNumber))
+           do {
+               let result = try calculate()
+               if result > 1_000_000_000 {
+                   // Форматирование числа в формате научной нотации
+                   label.text = String(format: "%.2e", result)
+               } else {
+                   label.text = numberFormatter.string(from: NSNumber(value: result))
+               }
+           }
+           catch CalculationError.dividedByZero {
+               label.text = "Ошибка: деление на ноль"
+           }
+           catch {
+               label.text = "Ошибка"
+           }
+           calculationHistory.removeAll()
+
     }
     
     var calculationHistory: [CalculationHistoryItem] = []
